@@ -1,0 +1,13 @@
+{
+  "name": "ants",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.js build"
+  },
+  "dependencies": {
+    "esbuild": "^0.25.8",
+    "esbuild-plugin-wasm": "^1.1.0",
+    "three": "^0.180.0"
+  }
+}
