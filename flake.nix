@@ -19,15 +19,17 @@
         rustc
         lld
       ];
+      RUSTFLAGS = "--cfg getrandom_backend=\"wasm_js\"";
     };
     packages.${system}.default = let
       craneLib = crane.mkLib pkgs;
       wasm = craneLib.buildPackage {
         src = craneLib.cleanCargoSource ./wasm;
         strictDeps = true;
-        cargoExtraArgs = "--target wasm32-unknown-unknown";
         doCheck = false;
         nativeBuildInputs = [pkgs.lld];
+        CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
+        CARGO_BUILD_RUSTFLAGS = "--cfg getrandom_backend=\"wasm_js\"";
       };
       wasmGlue = pkgs.runCommand "wasm-glue" {buildInputs = [pkgs.wasm-bindgen-cli_0_2_100];} ''
         wasm-bindgen --no-typescript --target bundler --out-dir $out/src ${wasm}/lib/*.wasm
