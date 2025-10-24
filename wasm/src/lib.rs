@@ -77,23 +77,47 @@ impl Environment {
             ant.x += ant.a.cos();
             ant.y += ant.a.sin();
 
-            // boundary collision
-            if ant.x < (-self.width / 2.) {
-                ant.a = 0.;
-            }
-            if ant.x >= (self.width / 2.) {
-                ant.a = PI;
-            }
-            if ant.y < (-self.height / 2.) {
-                ant.a = PI / 2.;
-            }
-            if ant.y >= (self.height / 2.) {
-                ant.a = -PI / 2.;
-            }
+            boundary_collision(
+                &mut ant.x,
+                &mut ant.y,
+                &mut ant.a,
+                -self.width / 2.,
+                self.width / 2.,
+                -self.height / 2.,
+                self.height / 2.,
+            );
         }
         let out = Output {
             ants: self.ants.clone(), // TODO: can clone be avoided here?
         };
         serde_wasm_bindgen::to_value(&out).unwrap()
+    }
+}
+
+fn boundary_collision(x: &mut f32, y: &mut f32, a: &mut f32, l: f32, r: f32, u: f32, d: f32) {
+    const MARGIN: f32 = 1.;
+    // left
+    let diff = l - *x;
+    if 0. < diff {
+        *x += diff + MARGIN;
+        *a = PI - *a;
+    }
+    // right
+    let diff = r - *x;
+    if diff < 0. {
+        *x -= diff + MARGIN;
+        *a = PI - *a;
+    }
+    // up
+    let diff = u - *y;
+    if 0. < diff {
+        *y += diff + MARGIN;
+        *a = -*a;
+    }
+    // down
+    let diff = d - *y;
+    if diff < 0. {
+        *y -= diff + MARGIN;
+        *a = -*a;
     }
 }
