@@ -4,9 +4,10 @@
 use rand::prelude::*;
 use serde::Serialize;
 use std::default;
-use std::f64::consts::PI;
 use std::panic;
 use wasm_bindgen::prelude::*;
+
+const PI: f32 = std::f64::consts::PI as f32;
 
 #[derive(Clone, Serialize)]
 pub struct Output {
@@ -14,11 +15,13 @@ pub struct Output {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone, Serialize)]
+#[derive(Copy, Clone, Default, Serialize)]
 pub struct Ant {
+    // TODO: separate into Internal and External ant (because JS don't need all fields)
     x: f32,
     y: f32,
-    a: f32,
+    a: f32,  // angle: radians
+    av: f32, // angular velocity: radians per tick
 }
 
 #[wasm_bindgen]
@@ -26,12 +29,17 @@ pub struct Ant {
 pub struct Environment {
     ants: Vec<Ant>,
     total_steps: i32,
+    ant_speed: f32,
+    rng: ThreadRng,
+    width: f32,
+    height: f32,
 }
 
 #[wasm_bindgen]
 impl Environment {
     #[wasm_bindgen(constructor)]
     pub fn new(ant_count: u32, width: i32, height: i32) -> Self {
+        // TODO: make parameter one object
         panic::set_hook(Box::new(console_error_panic_hook::hook));
         let right = width as f32 / 2.;
         let left = -width as f32 / 2.;
@@ -43,19 +51,45 @@ impl Environment {
                 x: rng.random_range(left..right),
                 y: rng.random_range(down..up),
                 a: rng.random_range(0f32..(PI as f32 * 2.)),
+                ..Default::default()
             })
             .collect();
         Self {
             ants,
+            ant_speed: 0.1,
+            rng: rng,
+            width: width as f32,
+            height: height as f32,
             ..Default::default()
         }
     }
     pub fn step(&mut self) -> JsValue {
         self.total_steps += 1;
         for ant in self.ants.iter_mut() {
-            ant.x += (self.total_steps as f32 * 0.1).cos();
-            ant.y += (self.total_steps as f32 * 0.1).sin();
-            ant.a += (self.total_steps as f32 * 0.05).cos() * 0.1;
+            if self.rng.random_ratio(1, 80) {
+                const MARGIN: f32 = PI / 50.;
+                ant.av = self.rng.random_range(-MARGIN..MARGIN);
+            }
+            if self.rng.random_ratio(1, 40) {
+                ant.av = 0.;
+            }
+            ant.a += ant.av;
+            ant.x += ant.a.cos();
+            ant.y += ant.a.sin();
+
+            // boundary collision
+            if ant.x < (-self.width / 2.) {
+                ant.a = 0.;
+            }
+            if ant.x >= (self.width / 2.) {
+                ant.a = PI;
+            }
+            if ant.y < (-self.height / 2.) {
+                ant.a = PI / 2.;
+            }
+            if ant.y >= (self.height / 2.) {
+                ant.a = -PI / 2.;
+            }
         }
         let out = Output {
             ants: self.ants.clone(), // TODO: can clone be avoided here?

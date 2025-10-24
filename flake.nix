@@ -18,6 +18,7 @@
         cargo
         rustc
         lld
+        rust-analyzer # TODO: remove this when I make `rust-analyzer` recognise environment from NixOS
       ];
       RUSTFLAGS = "--cfg getrandom_backend=\"wasm_js\"";
     };
