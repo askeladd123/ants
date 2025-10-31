@@ -15,13 +15,13 @@ scene.add(camera);
 renderer.setSize(width(), height());
 document.body.appendChild(renderer.domElement);
 
-const instances = 1000;
+const instances = 100;
 const environment = new Environment(instances, width(), height());
 
 const verticies = [
-  [-5, 0, 0],
-  [5, 0, 0],
-  [0, 10, 0],
+  [-4, 2, 0],
+  [0, -10, 0],
+  [4, 2, 0],
 ];
 const geometry = new THREE.BufferGeometry(); // TODO: create complex, indexed geometry
 geometry.setAttribute(
@@ -42,7 +42,7 @@ renderer.setAnimationLoop(() => {
     let obj = new THREE.Object3D();
     obj.position.x = ant.x;
     obj.position.y = ant.y;
-    obj.rotation.z = ant.a;
+    obj.rotation.z = ant.a - Math.PI / 2;
     obj.updateMatrix();
     mesh.setMatrixAt(i, obj.matrix);
   }

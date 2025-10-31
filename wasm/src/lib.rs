@@ -7,12 +7,18 @@ use std::default;
 use std::panic;
 use wasm_bindgen::prelude::*;
 
+mod utils;
+
 const PI: f32 = std::f64::consts::PI as f32;
 
-#[derive(Clone, Serialize)]
+#[derive(Default, Clone, Serialize)]
 pub struct Output {
     ants: Vec<Ant>,
+    debug: Option<OutputDebug>,
 }
+
+#[derive(Default, Clone, Serialize)]
+pub struct OutputDebug {}
 
 #[wasm_bindgen]
 #[derive(Copy, Clone, Default, Serialize)]
@@ -89,6 +95,7 @@ impl Environment {
         }
         let out = Output {
             ants: self.ants.clone(), // TODO: can clone be avoided here?
+            ..Default::default()
         };
         serde_wasm_bindgen::to_value(&out).unwrap()
     }
