@@ -15,7 +15,7 @@ scene.add(camera);
 renderer.setSize(width(), height());
 document.body.appendChild(renderer.domElement);
 
-const instances = 100;
+const instances = 1000;
 const grid_nx = 8;
 const grid_ny = 5;
 const grid_n = grid_nx * grid_ny;
@@ -34,6 +34,8 @@ geometry.setAttribute(
 
 const material = new THREE.MeshBasicMaterial({ color: new THREE.Color('skyblue') });
 const mesh = new THREE.InstancedMesh(geometry, material, instances);
+const scale = 1.5
+mesh.scale.set(scale, scale, 1);
 
 scene.add(mesh);
 
@@ -59,6 +61,7 @@ renderer.domElement.addEventListener('mousemove', (event) => {
 });
 
 const debug_grid_planes = [];
+// const buckets_meta = environment.get_info().buckets_meta;
 
 for (let i = 0; i < grid_n; i++) {
   let tmp = [];
@@ -91,7 +94,7 @@ renderer.setAnimationLoop(() => {
 
       let color = null;
       if (debug) {
-        color = new THREE.Color().setHSL((bucket.index * 0.137) % 1, 0.8, 0.5);
+        color = new THREE.Color().setHSL((1.137 * bucket.index / grid_n) % 1, 0.8, 0.5);
       } else {
         color = new THREE.Color('skyblue');
       }
@@ -102,17 +105,17 @@ renderer.setAnimationLoop(() => {
     }
   }
 
-  if (debug) {
-    for (let i = 0; i < grid_n; i++) {
-      let bucket = last_environment.debug.buckets_meta[i];
-      let pair = debug_grid_planes[i];
+  // if (debug) {
+  //   for (let i = 0; i < grid_n; i++) {
+  //     let bucket = buckets_meta[i];
+  //     let pair = debug_grid_planes[i];
 
-      pair[0].position.set(bucket.x, bucket.y, 0);
-      pair[0].scale.set(bucket.w, 1, 0);
-      pair[1].position.set(bucket.x, bucket.y, 0);
-      pair[1].scale.set(1, bucket.w, 0);
-    }
-  }
+  //     pair[0].position.set(bucket.x, bucket.y, 0);
+  //     pair[0].scale.set(bucket.w, 1, 0);
+  //     pair[1].position.set(bucket.x, bucket.y, 0);
+  //     pair[1].scale.set(1, bucket.w, 0);
+  //   }
+  // }
 
   mesh.instanceMatrix.needsUpdate = true;
   mesh.instanceColor.needsUpdate = true;

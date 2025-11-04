@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::info;
+use log::{debug, info};
 use std::fmt::Debug;
 use std::{collections::HashMap, ops::Index};
 
@@ -20,32 +20,35 @@ pub trait Indexed {
 pub struct Grid<T: Indexed + Coord + Copy + Clone + Debug> {
     entries: Vec<HashMap<u32, T>>,
     index_counter: u32,
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
+    rx: f32,
+    ry: f32,
     buckets_x: u32,
     buckets_y: u32,
 }
 
 impl<T: Indexed + Coord + Copy + Clone + Debug> Grid<T> {
-    pub fn new(rx: f32, ry: f32, buckets_x: u32, buckets_y: u32) -> Self {
+    /// * `rx` - distance from center to left/right edge
+    /// * `ry` - distance from center to top/bottom edge
+    pub fn new(rx: f32, ry: f32, nx: u32, ny: u32) -> Self {
+        info!(
+            "creating grid\n\trx: {rx}\try: {ry}\n\tnx: {nx}\tny: {ny}\n\tvec: {}",
+            nx * ny
+        );
         // TODO: start from center
         Self {
-            entries: vec![HashMap::new(); (buckets_x * buckets_y) as usize],
-            x,
-            y,
-            width,
-            height,
-            buckets_x,
-            buckets_y,
+            entries: vec![HashMap::new(); (nx * ny) as usize],
             index_counter: 0,
+            rx,
+            ry,
+            buckets_x: nx,
+            buckets_y: ny,
         }
     }
     /// Create item in Gred, put into corresponding bucket / tile.
     pub fn new_item_at(&mut self, x: f32, y: f32) -> Result<()> {
         let item = T::new(self.index_counter);
         self.index_counter += 1;
+        debug!("x: {x}\ty: {y}");
         let index = self.coord2index(x, y) as usize;
         self.entries[index].insert(item.index(), item);
         Ok(())
@@ -63,11 +66,13 @@ impl<T: Indexed + Coord + Copy + Clone + Debug> Grid<T> {
         }
         for (i_old, i_new, index) in changed.into_iter() {
             let item = self.entries[i_old as usize].remove(&index).unwrap();
-            info!("old: {i_old}, new: {i_new}, adding: {item:?} ");
             // self.entries[i_new as usize].insert(item.index(), item);
             self.entries
                 .get_mut(i_new as usize)
-                .expect(&format!("old: {i_old}, new: {i_new}, item: {item:?}"))
+                .expect(&format!(
+                    "index\n\told: {i_old}\n\tnew: {i_new}\nitem\n\tx: {}\n\ty: {}\ngrid\n\tn_x: {}\n\tn_y: {}\nmath\n\ti_x: {}\n\ti_y: {}",
+                    item.x(), item.y(), self.buckets_x, self.buckets_y, (item.x() / (self.buckets_x - 1) as f32).floor(), (item.y() / (self.buckets_y - 1) as f32).floor()
+                ))
                 .insert(item.index(), item);
         }
         Ok(())
@@ -84,19 +89,23 @@ impl<T: Indexed + Coord + Copy + Clone + Debug> Grid<T> {
         // TODO: impl iter instead
         self.entries.iter_mut().flat_map(|m| m.values_mut())
     }
+    /// for accessing row-major array
     fn coord2index(&self, x: f32, y: f32) -> u32 {
         // TODO: should `index` this be usize?
-        let i_x = ((x + self.x) / (self.buckets_x - 1) as f32).floor() as u32;
-        let i_y = ((y + self.y) / (self.buckets_y - 1) as f32).floor() as u32;
+        // let i_x = ((x + self.rx) / (self.buckets_x - 1) as f32).floor() as u32;
+        // let i_y = ((y + self.ry) / (self.buckets_y - 1) as f32).floor() as u32;
+        let i_x = (self.buckets_x as f32 * ((x + self.rx) / (self.rx * 2.))) as u32;
+        let i_y = (self.buckets_y as f32 * ((y + self.ry) / (self.ry * 2.))) as u32;
         i_x + i_y * self.buckets_x
     }
+    /// for accessing row-major array
     fn index2coord(&self, i: u32) -> (f32, f32) {
         // TODO: should `index` this be usize?
         let i_x = i % self.buckets_x;
         let i_y = i / self.buckets_x;
         (
-            i_x as f32 * self.width - self.x,
-            i_y as f32 * self.height - self.y,
+            i_x as f32 * self.rx * 2. - self.rx,
+            i_y as f32 * self.ry * 2. - self.ry,
         )
     }
 }
@@ -125,8 +134,8 @@ impl Grid<crate::Ant> {
     pub fn web_output_buckets_meta(&self) -> Vec<crate::web_output::BucketMeta> {
         let mut buckets = Vec::new();
         let (w, h) = (
-            self.width / self.buckets_x as f32,
-            self.height / self.buckets_y as f32,
+            2. * self.rx / self.buckets_x as f32,
+            2. * self.ry / self.buckets_y as f32,
         );
         for i in 0..self.entries.len() {
             let (x, y) = self.index2coord(i as u32);

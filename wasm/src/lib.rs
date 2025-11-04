@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused)]
 
+use log::{info, trace};
 use rand::prelude::*;
 use serde::Serialize;
 use std::default;
@@ -17,13 +18,19 @@ mod web_output;
 const PI: f32 = std::f64::consts::PI as f32;
 
 // #[wasm_bindgen]
-#[derive(Copy, Clone, Default, Debug)]
+///
+/// * `x` - position: left right
+/// * `y` - position: up down
+/// * `v` - velocity: around 1.0
+/// * `a` - angle radians
+/// * `av` - angular velocity, radians per tick
+#[derive(Copy, Clone, Debug)]
 pub struct Ant {
-    // TODO: separate into Internal and External ant (because JS don't need all fields)
     pub x: f32,
     pub y: f32,
-    pub a: f32,  // angle: radians
-    pub av: f32, // angular velocity: radians per tick
+    pub v: f32,
+    pub a: f32,
+    pub av: f32,
     pub index: u32,
 }
 
@@ -38,9 +45,16 @@ impl Coord for Ant {
 
 impl Indexed for Ant {
     fn new(index: u32) -> Self {
+        let mut rng = rand::rng();
+        let var = 0.25;
+
         Self {
             index,
-            ..Default::default()
+            x: 0.,
+            y: 0.,
+            v: 1.0 + rng.random_range(-var..var),
+            a: rng.random_range(0f32..PI * 2.),
+            av: 0.,
         }
     }
 
@@ -50,11 +64,9 @@ impl Indexed for Ant {
 }
 
 #[wasm_bindgen]
-#[derive(Default)]
 pub struct Environment {
     grid: Grid<Ant>,
     total_steps: i32,
-    ant_speed: f32,
     rng: ThreadRng,
     width: f32,
     height: f32,
@@ -67,31 +79,33 @@ impl Environment {
         console_log::init_with_level(log::Level::Trace);
         // TODO: make parameter one object
         panic::set_hook(Box::new(console_error_panic_hook::hook));
-        let right = width as f32 / 2.;
-        let left = -width as f32 / 2.;
-        let up = height as f32 / 2.;
-        let down = -height as f32 / 2.;
+
+        info!("creating environment\n\tants: {ant_count}\n\tw: {width}\th: {height}");
+
+        // let right = width as f32 / 2.;
+        // let left = -width as f32 / 2.;
+        // let up = height as f32 / 2.;
+        // let down = -height as f32 / 2.;
         let mut rng = rand::rng();
 
-        let mut grid = Grid::<Ant>::new(
-            -width as f32 / 2.,
-            -height as f32 / 2.,
-            height as f32,
-            width as f32,
-            grid_nx,
-            grid_ny,
-        );
+        let mut grid = Grid::<Ant>::new(width as f32 / 2., height as f32 / 2., grid_nx, grid_ny);
         for i in 0..ant_count {
             grid.new_item_at(0., 0.);
         }
         Self {
             grid,
-            ant_speed: 0.1,
+            total_steps: 0,
             rng: rng,
             width: width as f32,
             height: height as f32,
-            ..Default::default()
         }
+    }
+    /// Get about about the initialized wasm code
+    pub fn get_info(self) -> JsValue {
+        let out = web_output::Init {
+            buckets_meta: self.grid.web_output_buckets_meta(),
+        };
+        serde_wasm_bindgen::to_value(&out).unwrap()
     }
     pub fn step(&mut self, debug_mode: bool) -> JsValue {
         self.total_steps += 1;
@@ -109,8 +123,8 @@ impl Environment {
                 ant.av = 0.;
             }
             ant.a += ant.av;
-            ant.x += ant.a.cos();
-            ant.y += ant.a.sin();
+            ant.x += ant.a.cos() * ant.v;
+            ant.y += ant.a.sin() * ant.v;
 
             boundary_collision(
                 &mut ant.x,
@@ -122,17 +136,18 @@ impl Environment {
                 self.height / 2.,
             );
         }
-        let out = web_output::Output {
+        let out = web_output::Tick {
             main: web_output::Main {
                 buckets: self.grid.web_output_buckets(),
             },
-            debug: if debug_mode {
-                Some(web_output::Debug {
-                    buckets_meta: self.grid.web_output_buckets_meta(),
-                })
-            } else {
-                None
-            },
+            // debug: None,
+            // debug: if debug_mode {
+            //     Some(web_output::Debug {
+            //         buckets_meta: self.grid.web_output_buckets_meta(),
+            //     })
+            // } else {
+            //     None
+            // },
         };
         serde_wasm_bindgen::to_value(&out).unwrap()
     }
