@@ -4,36 +4,55 @@
 use rand::prelude::*;
 use serde::Serialize;
 use std::default;
+use std::fmt::Display;
 use std::panic;
 use wasm_bindgen::prelude::*;
 
+use crate::utils::Grid;
+use crate::utils::{Coord, Indexed};
+
 mod utils;
+mod web_output;
 
 const PI: f32 = std::f64::consts::PI as f32;
 
-#[derive(Default, Clone, Serialize)]
-pub struct Output {
-    ants: Vec<Ant>,
-    debug: Option<OutputDebug>,
-}
-
-#[derive(Default, Clone, Serialize)]
-pub struct OutputDebug {}
-
-#[wasm_bindgen]
-#[derive(Copy, Clone, Default, Serialize)]
+// #[wasm_bindgen]
+#[derive(Copy, Clone, Default, Debug)]
 pub struct Ant {
     // TODO: separate into Internal and External ant (because JS don't need all fields)
-    x: f32,
-    y: f32,
-    a: f32,  // angle: radians
-    av: f32, // angular velocity: radians per tick
+    pub x: f32,
+    pub y: f32,
+    pub a: f32,  // angle: radians
+    pub av: f32, // angular velocity: radians per tick
+    pub index: u32,
+}
+
+impl Coord for Ant {
+    fn x(&self) -> f32 {
+        self.x
+    }
+    fn y(&self) -> f32 {
+        self.y
+    }
+}
+
+impl Indexed for Ant {
+    fn new(index: u32) -> Self {
+        Self {
+            index,
+            ..Default::default()
+        }
+    }
+
+    fn index(&self) -> u32 {
+        self.index
+    }
 }
 
 #[wasm_bindgen]
 #[derive(Default)]
 pub struct Environment {
-    ants: Vec<Ant>,
+    grid: Grid<Ant>,
     total_steps: i32,
     ant_speed: f32,
     rng: ThreadRng,
@@ -44,7 +63,8 @@ pub struct Environment {
 #[wasm_bindgen]
 impl Environment {
     #[wasm_bindgen(constructor)]
-    pub fn new(ant_count: u32, width: i32, height: i32) -> Self {
+    pub fn new(ant_count: u32, width: i32, height: i32, grid_nx: u32, grid_ny: u32) -> Self {
+        console_log::init_with_level(log::Level::Trace);
         // TODO: make parameter one object
         panic::set_hook(Box::new(console_error_panic_hook::hook));
         let right = width as f32 / 2.;
@@ -52,16 +72,20 @@ impl Environment {
         let up = height as f32 / 2.;
         let down = -height as f32 / 2.;
         let mut rng = rand::rng();
-        let ants = (0..ant_count)
-            .map(|_| Ant {
-                x: rng.random_range(left..right),
-                y: rng.random_range(down..up),
-                a: rng.random_range(0f32..(PI as f32 * 2.)),
-                ..Default::default()
-            })
-            .collect();
+
+        let mut grid = Grid::<Ant>::new(
+            -width as f32 / 2.,
+            -height as f32 / 2.,
+            height as f32,
+            width as f32,
+            grid_nx,
+            grid_ny,
+        );
+        for i in 0..ant_count {
+            grid.new_item_at(0., 0.);
+        }
         Self {
-            ants,
+            grid,
             ant_speed: 0.1,
             rng: rng,
             width: width as f32,
@@ -69,9 +93,14 @@ impl Environment {
             ..Default::default()
         }
     }
-    pub fn step(&mut self) -> JsValue {
+    pub fn step(&mut self, debug_mode: bool) -> JsValue {
         self.total_steps += 1;
-        for ant in self.ants.iter_mut() {
+
+        if self.total_steps % 60 == 0 {
+            self.grid.update();
+        }
+
+        for mut ant in self.grid.iter_mut() {
             if self.rng.random_ratio(1, 80) {
                 const MARGIN: f32 = PI / 50.;
                 ant.av = self.rng.random_range(-MARGIN..MARGIN);
@@ -93,9 +122,17 @@ impl Environment {
                 self.height / 2.,
             );
         }
-        let out = Output {
-            ants: self.ants.clone(), // TODO: can clone be avoided here?
-            ..Default::default()
+        let out = web_output::Output {
+            main: web_output::Main {
+                buckets: self.grid.web_output_buckets(),
+            },
+            debug: if debug_mode {
+                Some(web_output::Debug {
+                    buckets_meta: self.grid.web_output_buckets_meta(),
+                })
+            } else {
+                None
+            },
         };
         serde_wasm_bindgen::to_value(&out).unwrap()
     }

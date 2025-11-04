@@ -3,9 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+          margin: 0;
+          overflow: hidden;
+        }
+        #container {
+          position: relative;
+          width: 100vw;
+          height: 100vh;
+        }
+        #three-canvas,
+        .overlay {
+          position: absolute;
+        }
+        .overlay {
+          z-index: 1;
+        }
+        #mouse-label {
+          position: absolute;
+          left: 10px;
+          top: 10px;
+          color: white;
+          font-family: monospace;
+          font-size: 12px;
+          padding: 4px 6px;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 10;
+          display: none;
+        }
+    </style>
 </head>
 <body>
     <div id="app"></div>
+    <div class="overlay">
+      <button id="button-debug">debug:</button>
+      <div id="debug">
+        <div id="mouse-coord-debug"></div>
+      </div>
+    </div>
     <script src="./main.js" type="module"></script>
 </body>
 </html>
