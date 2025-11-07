@@ -27,6 +27,7 @@ const vertices = [
   0, -10, 0, // bottom
   -4, 2, 0, // left
 ];
+const scale = 1.2;
 
 const indices = [
   0, 3, 1, // top-right-bottom
@@ -39,11 +40,10 @@ geometry.setAttribute(
   new THREE.BufferAttribute(new Float32Array(vertices), 3)
 );
 geometry.setIndex(indices);
+geometry.scale(scale, scale, 1);
 
 const material = new THREE.MeshBasicMaterial({ color: new THREE.Color('skyblue') });
 const mesh = new THREE.InstancedMesh(geometry, material, instances);
-const scale = 1.5;
-mesh.scale.set(scale, scale, 1);
 
 scene.add(mesh);
 
@@ -69,13 +69,12 @@ renderer.domElement.addEventListener('mousemove', (event) => {
 });
 
 const debug_grid_planes = [];
-// const buckets_meta = environment.get_info().buckets_meta;
 
 for (let i = 0; i < grid_n; i++) {
   let tmp = [];
   for (let j = 0; j < 2; j++) {
     const debug_grid_plane_geometry = new THREE.PlaneGeometry(1, 1);
-    const debug_grid_plane_material = new THREE.MeshBasicMaterial({ color: 0x2196f3 });
+    const debug_grid_plane_material = new THREE.MeshBasicMaterial({ color: new THREE.Color('grey') });
     const debug_grid_plane_mesh = new THREE.Mesh(debug_grid_plane_geometry, debug_grid_plane_material);
     debug_grid_plane_mesh.visible = false;
     scene.add(debug_grid_plane_mesh);
@@ -102,7 +101,7 @@ renderer.setAnimationLoop(() => {
 
       let color = null;
       if (debug) {
-        color = new THREE.Color().setHSL((1.137 * bucket.index / grid_n) % 1, 0.8, 0.5);
+        color = new THREE.Color().setHSL((6.789 * bucket.index / grid_n) % 1, 0.8, 0.5);
       } else {
         color = new THREE.Color('skyblue');
       }
@@ -113,17 +112,21 @@ renderer.setAnimationLoop(() => {
     }
   }
 
-  // if (debug) {
-  //   for (let i = 0; i < grid_n; i++) {
-  //     let bucket = buckets_meta[i];
-  //     let pair = debug_grid_planes[i];
+  if (debug) {
+    const grid = last_environment.debug.grid
+    for (let i = 0; i < grid_n; i++) {
+      let bucket = grid.buckets[i];
+      let pair = debug_grid_planes[i];
 
-  //     pair[0].position.set(bucket.x, bucket.y, 0);
-  //     pair[0].scale.set(bucket.w, 1, 0);
-  //     pair[1].position.set(bucket.x, bucket.y, 0);
-  //     pair[1].scale.set(1, bucket.w, 0);
-  //   }
-  // }
+      const thickness = 0.5;
+      const rx = grid.bucket_width / 2;
+      const ry = grid.bucket_height / 2;
+      pair[0].position.set(bucket.x + rx, bucket.y, 0);
+      pair[0].scale.set(grid.bucket_width, thickness, 1);
+      pair[1].position.set(bucket.x, bucket.y + ry, 0);
+      pair[1].scale.set(thickness, grid.bucket_height, 1);
+    }
+  }
 
   mesh.instanceMatrix.needsUpdate = true;
   mesh.instanceColor.needsUpdate = true;

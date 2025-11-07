@@ -48,7 +48,6 @@ impl<T: Indexed + Coord + Copy + Clone + Debug> Grid<T> {
     pub fn new_item_at(&mut self, x: f32, y: f32) -> Result<()> {
         let item = T::new(self.index_counter);
         self.index_counter += 1;
-        debug!("x: {x}\ty: {y}");
         let index = self.coord2index(x, y) as usize;
         self.entries[index].insert(item.index(), item);
         Ok(())
@@ -58,6 +57,10 @@ impl<T: Indexed + Coord + Copy + Clone + Debug> Grid<T> {
         let mut changed = Vec::new();
         for (i_old, bucket) in self.entries.iter().enumerate() {
             for (index, item) in bucket.iter() {
+                let (x, y) = (item.x(), item.y());
+                if x <= -self.rx || self.rx <= x || y <= -self.ry || self.ry <= y {
+                    continue;
+                }
                 let i_new = self.coord2index(item.x(), item.y());
                 if i_new as usize != i_old {
                     changed.push((i_old, i_new, *index));
@@ -104,8 +107,8 @@ impl<T: Indexed + Coord + Copy + Clone + Debug> Grid<T> {
         let i_x = i % self.buckets_x;
         let i_y = i / self.buckets_x;
         (
-            i_x as f32 * self.rx * 2. - self.rx,
-            i_y as f32 * self.ry * 2. - self.ry,
+            (i_x as f32 * self.rx * 2.) / self.buckets_x as f32 - self.rx,
+            (i_y as f32 * self.ry * 2.) / self.buckets_y as f32 - self.ry,
         )
     }
 }
@@ -131,7 +134,7 @@ impl Grid<crate::Ant> {
         }
         buckets
     }
-    pub fn web_output_buckets_meta(&self) -> Vec<crate::web_output::BucketMeta> {
+    pub fn web_output_buckets_debug_grid(&self) -> crate::web_output::Grid {
         let mut buckets = Vec::new();
         let (w, h) = (
             2. * self.rx / self.buckets_x as f32,
@@ -143,10 +146,12 @@ impl Grid<crate::Ant> {
                 index: i as u32,
                 x,
                 y,
-                w,
-                h,
             });
         }
-        buckets
+        crate::web_output::Grid {
+            buckets,
+            bucket_width: w,
+            bucket_height: h,
+        }
     }
 }

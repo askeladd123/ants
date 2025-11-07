@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused)]
 
-use log::{info, trace};
+use log::{debug, info, trace};
 use rand::prelude::*;
 use serde::Serialize;
 use std::default;
@@ -66,7 +66,7 @@ impl Indexed for Ant {
 #[wasm_bindgen]
 pub struct Environment {
     grid: Grid<Ant>,
-    total_steps: i32,
+    total_steps: i64,
     rng: ThreadRng,
     width: f32,
     height: f32,
@@ -100,13 +100,13 @@ impl Environment {
             height: height as f32,
         }
     }
-    /// Get about about the initialized wasm code
-    pub fn get_info(self) -> JsValue {
-        let out = web_output::Init {
-            buckets_meta: self.grid.web_output_buckets_meta(),
-        };
-        serde_wasm_bindgen::to_value(&out).unwrap()
-    }
+    // /// Get about about the initialized wasm code
+    // pub fn get_info(&self) -> JsValue {
+    //     let out = web_output::Init {
+    //         buckets_meta: self.grid.web_output_buckets_meta(),
+    //     };
+    //     serde_wasm_bindgen::to_value(&out).unwrap()
+    // }
     pub fn step(&mut self, debug_mode: bool) -> JsValue {
         self.total_steps += 1;
 
@@ -126,28 +126,30 @@ impl Environment {
             ant.x += ant.a.cos() * ant.v;
             ant.y += ant.a.sin() * ant.v;
 
-            boundary_collision(
-                &mut ant.x,
-                &mut ant.y,
-                &mut ant.a,
-                -self.width / 2.,
-                self.width / 2.,
-                -self.height / 2.,
-                self.height / 2.,
-            );
+            let l = -self.width / 2.;
+            let r = self.width / 2.;
+            let u = -self.height / 2.;
+            let d = self.height / 2.;
+
+            boundary_collision(&mut ant.x, &mut ant.y, &mut ant.a, l, r, u, d);
+            // debug!(
+            //     "x: {}\ty: {}\tl: {l}\tr: {r}\tu: {u}\td: {d}",
+            //     ant.x(),
+            //     ant.y()
+            // );
         }
-        let out = web_output::Tick {
+        let out = web_output::Output {
             main: web_output::Main {
                 buckets: self.grid.web_output_buckets(),
             },
             // debug: None,
-            // debug: if debug_mode {
-            //     Some(web_output::Debug {
-            //         buckets_meta: self.grid.web_output_buckets_meta(),
-            //     })
-            // } else {
-            //     None
-            // },
+            debug: if debug_mode {
+                Some(web_output::Debug {
+                    grid: self.grid.web_output_buckets_debug_grid(),
+                })
+            } else {
+                None
+            },
         };
         serde_wasm_bindgen::to_value(&out).unwrap()
     }
