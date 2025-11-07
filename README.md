@@ -3,7 +3,7 @@ This is a project where I play around with and visualize an [Ant Colony Optimiza
 A working demo should be deployed at [asks.no](https://asks.no/external/code/ants/index.html). Also check out [my website](https://asks.no/) btw.
 
 ## aco
-In short, real world ants find a short path between food and nest by utilizing pheromones. This is a type of emergent behavioral; apparent intelligence from un-intelligent actors.
+In short, real world ants find a short path between food and nest by utilizing pheromones. This is a type of emergent behavior; apparent intelligence from un-intelligent actors.
 
 The same rules can be simplified and replicated in a computer algorithm. 
 
