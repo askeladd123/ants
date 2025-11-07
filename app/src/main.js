@@ -21,20 +21,28 @@ const grid_ny = 5;
 const grid_n = grid_nx * grid_ny;
 const environment = new Environment(instances, width(), height(), grid_nx, grid_ny);
 
-const verticies = [
-  [-4, 2, 0],
-  [0, -10, 0],
-  [4, 2, 0],
+const vertices = [
+  0, 6, 0, // top
+  4, 2, 0, // right
+  0, -10, 0, // bottom
+  -4, 2, 0, // left
 ];
-const geometry = new THREE.BufferGeometry(); // TODO: create complex, indexed geometry
+
+const indices = [
+  0, 3, 1, // top-right-bottom
+  1, 3, 2, // top-bottom-left
+];
+
+const geometry = new THREE.BufferGeometry();
 geometry.setAttribute(
   'position',
-  new THREE.BufferAttribute(new Float32Array(verticies.flat()), 3)
+  new THREE.BufferAttribute(new Float32Array(vertices), 3)
 );
+geometry.setIndex(indices);
 
 const material = new THREE.MeshBasicMaterial({ color: new THREE.Color('skyblue') });
 const mesh = new THREE.InstancedMesh(geometry, material, instances);
-const scale = 1.5
+const scale = 1.5;
 mesh.scale.set(scale, scale, 1);
 
 scene.add(mesh);
