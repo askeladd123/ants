@@ -25,27 +25,33 @@ const hashedNames = {
   assetNames: 'assets/[name]-[hash]',
 }
 
+function toRelUrlFromOutdir(outPath) {
+  const unix = outPath.replaceAll(path.sep, '/')
+  const rel = path.posix.relative(OUTDIR, unix)
+  return `./${rel}`
+}
+
 async function writeManifestAndHtml(result, { hashed }) {
-  const metafile = result.metafile
-  const outputs = metafile.outputs
+  const outputs = result.metafile?.outputs ?? {}
   const manifest = {}
 
   for (const outPath of Object.keys(outputs)) {
     const entryPoint = outputs[outPath].entryPoint
     if (entryPoint) {
-      // Normalize to web path under OUTDIR
-      const rel = '/' + path.posix.relative(OUTDIR, outPath.replaceAll(path.sep, '/'))
-      manifest[entryPoint] = rel
+      manifest[entryPoint] = toRelUrlFromOutdir(outPath)
     }
   }
 
-  await fs.writeFile(path.join(OUTDIR, 'manifest.json'), JSON.stringify(manifest, null, 2))
-
-  const mainUrl = manifest[ENTRY] || '/main.js'
-  const tpl = await fs.readFile('src/index.html', 'utf8')
-  const html = tpl.replace('{{MAIN}}', hashed ? mainUrl : '/main.js')
-
   await fs.mkdir(OUTDIR, { recursive: true })
+  await fs.writeFile(
+    path.join(OUTDIR, 'manifest.json'),
+    JSON.stringify(manifest, null, 2)
+  )
+
+  const tpl = await fs.readFile('src/index.html', 'utf8')
+  const mainUrl = hashed ? (manifest[ENTRY] ?? './main.js') : './main.js'
+  const html = tpl.replace('{{MAIN}}', mainUrl)
+
   await fs.writeFile(path.join(OUTDIR, 'index.html'), html)
 }
 
@@ -71,14 +77,13 @@ switch (process.argv[2]) {
       minify: false,
       sourcemap: true,
       define: { ESBUILD_LIVE_RELOAD: 'true' },
-      // keep stable names in dev for simplicity
+      write: true,
+      logLevel: 'silent',
     })
 
-    // Initial HTML for dev uses non-hashed /main.js
-    await writeManifestAndHtml(
-      { metafile: (await ctx.rebuild?.() ?? { metafile: { outputs: {} } }).metafile ?? { outputs: {} } },
-      { hashed: false }
-    )
+    // force an initial build so we have a metafile
+    const first = await ctx.rebuild()
+    await writeManifestAndHtml(first, { hashed: false })
 
     await ctx.watch()
     await ctx.serve({ servedir: OUTDIR })
