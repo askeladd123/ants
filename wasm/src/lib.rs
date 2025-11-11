@@ -9,16 +9,19 @@ use std::fmt::Display;
 use std::panic;
 use wasm_bindgen::prelude::*;
 
-use crate::utils::Grid;
-use crate::utils::{Coord, Indexed};
+use crate::data_structures::{Coord, GridUniSparse, Indexed};
+use crate::utils::GridCentered;
 
+mod data_structures;
 mod utils;
 mod web_output;
 
 const PI: f32 = std::f64::consts::PI as f32;
+/// how much angle can randomly change
+const ANT_AV_MARGIN: f32 = PI;
+const ANT_V_MAX: f32 = 100.0;
+const ANT_V_MIN: f32 = 60.0;
 
-// #[wasm_bindgen]
-///
 /// * `x` - position: left right
 /// * `y` - position: up down
 /// * `v` - velocity: around 1.0
@@ -46,13 +49,12 @@ impl Coord for Ant {
 impl Indexed for Ant {
     fn new(index: u32) -> Self {
         let mut rng = rand::rng();
-        let var = 0.25;
 
         Self {
             index,
             x: 0.,
             y: 0.,
-            v: 1.0 + rng.random_range(-var..var),
+            v: rng.random_range(ANT_V_MIN..ANT_V_MAX),
             a: rng.random_range(0f32..PI * 2.),
             av: 0.,
         }
@@ -65,7 +67,7 @@ impl Indexed for Ant {
 
 #[wasm_bindgen]
 pub struct Environment {
-    grid: Grid<Ant>,
+    grid: GridUniSparse<Ant>,
     total_steps: i64,
     rng: ThreadRng,
     width: f32,
@@ -82,13 +84,14 @@ impl Environment {
 
         info!("creating environment\n\tants: {ant_count}\n\tw: {width}\th: {height}");
 
-        // let right = width as f32 / 2.;
-        // let left = -width as f32 / 2.;
-        // let up = height as f32 / 2.;
-        // let down = -height as f32 / 2.;
         let mut rng = rand::rng();
 
-        let mut grid = Grid::<Ant>::new(width as f32 / 2., height as f32 / 2., grid_nx, grid_ny);
+        let mut grid = GridUniSparse::<Ant>::new(GridCentered {
+            rx: width as f32 / 2.,
+            ry: height as f32 / 2.,
+            nx: grid_nx,
+            ny: grid_ny,
+        });
         for i in 0..ant_count {
             grid.new_item_at(0., 0.);
         }
@@ -100,14 +103,9 @@ impl Environment {
             height: height as f32,
         }
     }
-    // /// Get about about the initialized wasm code
-    // pub fn get_info(&self) -> JsValue {
-    //     let out = web_output::Init {
-    //         buckets_meta: self.grid.web_output_buckets_meta(),
-    //     };
-    //     serde_wasm_bindgen::to_value(&out).unwrap()
-    // }
-    pub fn step(&mut self, debug_mode: bool) -> JsValue {
+
+    /// * `delta` - time between frame: for consistant speed accross different framerates
+    pub fn step(&mut self, delta: f32, debug_mode: bool) -> JsValue {
         self.total_steps += 1;
 
         if self.total_steps % 60 == 0 {
@@ -116,15 +114,15 @@ impl Environment {
 
         for mut ant in self.grid.iter_mut() {
             if self.rng.random_ratio(1, 80) {
-                const MARGIN: f32 = PI / 50.;
-                ant.av = self.rng.random_range(-MARGIN..MARGIN);
+                ant.av = self.rng.random_range(-ANT_AV_MARGIN..ANT_AV_MARGIN);
+                ant.v = self.rng.random_range(ANT_V_MIN..ANT_V_MAX);
             }
             if self.rng.random_ratio(1, 40) {
                 ant.av = 0.;
             }
-            ant.a += ant.av;
-            ant.x += ant.a.cos() * ant.v;
-            ant.y += ant.a.sin() * ant.v;
+            ant.a += ant.av * delta;
+            ant.x += ant.a.cos() * ant.v * delta;
+            ant.y += ant.a.sin() * ant.v * delta;
 
             let l = -self.width / 2.;
             let r = self.width / 2.;
@@ -132,17 +130,11 @@ impl Environment {
             let d = self.height / 2.;
 
             boundary_collision(&mut ant.x, &mut ant.y, &mut ant.a, l, r, u, d);
-            // debug!(
-            //     "x: {}\ty: {}\tl: {l}\tr: {r}\tu: {u}\td: {d}",
-            //     ant.x(),
-            //     ant.y()
-            // );
         }
         let out = web_output::Output {
             main: web_output::Main {
                 buckets: self.grid.web_output_buckets(),
             },
-            // debug: None,
             debug: if debug_mode {
                 Some(web_output::Debug {
                     grid: self.grid.web_output_buckets_debug_grid(),

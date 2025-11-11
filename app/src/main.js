@@ -86,8 +86,11 @@ for (let i = 0; i < grid_n; i++) {
 let debug = true;
 debug_init();
 
+const clock = new THREE.Clock();
+
 renderer.setAnimationLoop(() => {
-  const last_environment = environment.step(debug);
+
+  const last_environment = environment.step(clock.getDelta(), debug);
 
   let i = 0
   for (const bucket of last_environment.main.buckets) {
