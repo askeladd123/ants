@@ -1,6 +1,7 @@
 use crate::utils::{coord2index, index2coord, GridCentered};
 use anyhow::Result;
 use log::{debug, info};
+use serde::Serialize;
 use std::fmt::Debug;
 use std::{collections::HashMap, ops::Index};
 
@@ -25,7 +26,11 @@ pub struct GridUniSparse<T: Indexed + Coord + Copy + Clone + Debug> {
 }
 
 /// Data structure that maps a coordinate system onto a uniform grid.
-pub struct GridUniform {}
+#[derive(Default, Clone, Serialize, Debug)]
+pub struct GridUniform<T: Copy + Clone + Default + Debug + Serialize> {
+    entries: Vec<T>,
+    grid: GridCentered,
+}
 
 impl<T: Indexed + Coord + Copy + Clone + Debug> GridUniSparse<T> {
     /// * `rx` - distance from center to left/right edge
@@ -114,7 +119,7 @@ impl GridUniSparse<crate::Ant> {
         }
         buckets
     }
-    pub fn web_output_buckets_debug_grid(&self) -> crate::web_output::Grid {
+    pub fn web_output_buckets_debug_grid(&self) -> crate::web_output::GridUniSparse {
         let mut buckets = Vec::new();
         let (w, h) = (
             2. * self.grid.rx / self.grid.nx as f32,
@@ -128,10 +133,36 @@ impl GridUniSparse<crate::Ant> {
                 y,
             });
         }
-        crate::web_output::Grid {
+        crate::web_output::GridUniSparse {
             buckets,
             bucket_width: w,
             bucket_height: h,
         }
+    }
+}
+
+impl<T: Copy + Clone + Default + Debug + Serialize> GridUniform<T> {
+    pub fn new(grid: GridCentered) -> Self {
+        Self {
+            entries: vec![T::default(); (grid.nx * grid.ny) as usize],
+            grid,
+        }
+    }
+    pub fn get(&self, x: f32, y: f32) -> T {
+        self.entries
+            .get(coord2index(x, y, self.grid) as usize)
+            .unwrap()
+            .to_owned()
+    }
+    pub fn get_mut(&mut self, x: f32, y: f32) -> &mut T {
+        self.entries
+            .get_mut(coord2index(x, y, self.grid) as usize)
+            .unwrap()
+    }
+    pub fn set(&mut self, x: f32, y: f32, value: T) {
+        *self
+            .entries
+            .get_mut(coord2index(x, y, self.grid) as usize)
+            .unwrap() = value;
     }
 }

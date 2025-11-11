@@ -5,8 +5,9 @@ if (typeof ESBUILD_LIVE_RELOAD !== 'undefined' && ESBUILD_LIVE_RELOAD) {
   new EventSource("/esbuild").addEventListener("change", () => location.reload());
 }
 
+const FRAME_RATIO = 2 / 3;
 const width = function() { return window.innerWidth };
-const height = function() { return window.innerWidth * 2 / 3 };
+const height = function() { return window.innerWidth * FRAME_RATIO };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 const scene = new THREE.Scene();
@@ -16,10 +17,14 @@ renderer.setSize(width(), height());
 document.body.appendChild(renderer.domElement);
 
 const instances = 1000;
-const grid_nx = 8;
-const grid_ny = 5;
-const grid_n = grid_nx * grid_ny;
-const environment = new Environment(instances, width(), height(), grid_nx, grid_ny);
+const grid_uni_sparse_nx = 8;
+const grid_uni_sparse_ny = Math.round(grid_uni_sparse_nx * FRAME_RATIO);
+// const grid_uniform_nx = 1200;
+const grid_uniform_nx = 16;
+const grid_uniform_ny = Math.round(grid_uniform_nx * FRAME_RATIO);
+const grid_uniform_n = grid_uniform_nx * grid_uniform_ny;
+const grid_uni_sparse_n = grid_uni_sparse_nx * grid_uni_sparse_ny;
+const environment = new Environment(instances, width(), height(), grid_uni_sparse_nx, grid_uni_sparse_ny);
 
 const vertices = [
   0, 6, 0, // top
@@ -43,9 +48,37 @@ geometry.setIndex(indices);
 geometry.scale(scale, scale, 1);
 
 const material = new THREE.MeshBasicMaterial({ color: new THREE.Color('skyblue') });
-const mesh = new THREE.InstancedMesh(geometry, material, instances);
 
-scene.add(mesh);
+
+const mesh_uni_sparse = new THREE.InstancedMesh(geometry, material, instances);
+
+function init_uniform(width, height) {
+  const material = new THREE.MeshBasicMaterial({ color: new THREE.Color('white') }); // WARN: don't know why this has to be white initially
+  const geom = new THREE.PlaneGeometry(1, 1);
+  const instanced = new THREE.InstancedMesh(geom, material, grid_uniform_n);
+  const cellW = width / grid_uniform_nx;
+  const cellH = height / grid_uniform_ny;
+  const tmp = new THREE.Matrix4();
+
+  let i = 0;
+  for (let y = 0; y < grid_uniform_ny; y++) {
+    for (let x = 0; x < grid_uniform_nx; x++) {
+      const cx = -width / 2 + (x + 0.5) * cellW;
+      const cy = height / 2 - (y + 0.5) * cellH;
+      tmp.identity()
+        .makeScale(cellW, cellH, 0)
+        .setPosition(cx, cy, -1);
+      instanced.setMatrixAt(i++, tmp);
+    }
+  }
+  instanced.instanceMatrix.needsUpdate = true;
+  return instanced;
+}
+
+const mesh_uniform = init_uniform(width(), height());
+
+scene.add(mesh_uni_sparse);
+scene.add(mesh_uniform);
 
 camera.position.z = 5;
 
@@ -70,7 +103,7 @@ renderer.domElement.addEventListener('mousemove', (event) => {
 
 const debug_grid_planes = [];
 
-for (let i = 0; i < grid_n; i++) {
+for (let i = 0; i < grid_uni_sparse_n; i++) {
   let tmp = [];
   for (let j = 0; j < 2; j++) {
     const debug_grid_plane_geometry = new THREE.PlaneGeometry(1, 1);
@@ -109,20 +142,20 @@ renderer.setAnimationLoop(() => {
 
       let color = null;
       if (debug) {
-        color = new THREE.Color().setHSL((6.789 * bucket.index / grid_n) % 1, 0.8, 0.5);
+        color = new THREE.Color().setHSL((6.789 * bucket.index / grid_uni_sparse_n) % 1, 0.4, 0.5);
       } else {
         color = new THREE.Color('skyblue');
       }
 
-      mesh.setMatrixAt(i, obj.matrix);
-      mesh.setColorAt(i, color);
+      mesh_uni_sparse.setMatrixAt(i, obj.matrix);
+      mesh_uni_sparse.setColorAt(i, color);
       i++;
     }
   }
 
   if (debug) {
-    const grid = last_environment.debug.grid
-    for (let i = 0; i < grid_n; i++) {
+    const grid = last_environment.debug.grid_uni_sparse;
+    for (let i = 0; i < grid_uni_sparse_n; i++) {
       let bucket = grid.buckets[i];
       let pair = debug_grid_planes[i];
 
@@ -134,10 +167,24 @@ renderer.setAnimationLoop(() => {
       pair[1].position.set(bucket.x, bucket.y + ry, 0);
       pair[1].scale.set(thickness, grid.bucket_height, 1);
     }
+
+    const grid_uniform = last_environment.debug.grid_uniform.entries;
+    for (let i = 0; i < grid_uniform_n; i++) {
+      if (grid_uniform[i] == "Empty") {
+        mesh_uniform.setColorAt(i, new THREE.Color('black'));
+      }
+      try {
+        if ("Food" in grid_uniform[i]) {
+          mesh_uniform.setColorAt(i, new THREE.Color('green'));
+
+        }
+      } catch { }
+    }
+    mesh_uniform.instanceColor.needsUpdate = true;
   }
 
-  mesh.instanceMatrix.needsUpdate = true;
-  mesh.instanceColor.needsUpdate = true;
+  mesh_uni_sparse.instanceMatrix.needsUpdate = true;
+  mesh_uni_sparse.instanceColor.needsUpdate = true;
 
   renderer.render(scene, camera);
 });

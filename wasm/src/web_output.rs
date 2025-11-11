@@ -1,5 +1,10 @@
 use serde::Serialize;
 
+use crate::{
+    data_structures::GridUniform,
+    utils::{GridCentered, Tile},
+};
+
 #[derive(Clone, Default, Debug, Serialize)]
 /// Information sent every game tick.
 pub struct Output {
@@ -14,7 +19,8 @@ pub struct Main {
 
 #[derive(Clone, Default, Debug, Serialize)]
 pub struct Debug {
-    pub grid: Grid,
+    pub grid_uni_sparse: GridUniSparse,
+    pub grid_uniform: GridUniform<Tile>,
 }
 
 #[derive(Copy, Clone, Default, Debug, Serialize)]
@@ -32,11 +38,17 @@ pub struct Bucket {
 }
 
 #[derive(Clone, Default, Debug, Serialize)]
-pub struct Grid {
+pub struct GridUniSparse {
     pub buckets: Vec<BucketMeta>,
     pub bucket_width: f32,
     pub bucket_height: f32,
 }
+
+// #[derive(Clone, Default, Debug, Serialize)]
+// pub struct GridUniform {
+//     pub entries: Vec<BucketMeta>,
+//     pub grid_centered: GridCentered,
+// }
 
 #[derive(Copy, Clone, Default, Debug, Serialize)]
 pub struct BucketMeta {

@@ -9,8 +9,8 @@ use std::fmt::Display;
 use std::panic;
 use wasm_bindgen::prelude::*;
 
-use crate::data_structures::{Coord, GridUniSparse, Indexed};
-use crate::utils::GridCentered;
+use crate::data_structures::{Coord, GridUniSparse, GridUniform, Indexed};
+use crate::utils::{GridCentered, Tile};
 
 mod data_structures;
 mod utils;
@@ -67,7 +67,8 @@ impl Indexed for Ant {
 
 #[wasm_bindgen]
 pub struct Environment {
-    grid: GridUniSparse<Ant>,
+    grid_uni_sparse: GridUniSparse<Ant>,
+    grid_uniform: GridUniform<Tile>,
     total_steps: i64,
     rng: ThreadRng,
     width: f32,
@@ -77,7 +78,15 @@ pub struct Environment {
 #[wasm_bindgen]
 impl Environment {
     #[wasm_bindgen(constructor)]
-    pub fn new(ant_count: u32, width: i32, height: i32, grid_nx: u32, grid_ny: u32) -> Self {
+    pub fn new(
+        ant_count: u32,
+        width: i32,
+        height: i32,
+        grid_uni_sparse_nx: u32,
+        grid_uni_sparse_ny: u32,
+        grid_uniform_nx: u32,
+        grid_uniform_ny: u32,
+    ) -> Self {
         console_log::init_with_level(log::Level::Trace);
         // TODO: make parameter one object
         panic::set_hook(Box::new(console_error_panic_hook::hook));
@@ -86,17 +95,34 @@ impl Environment {
 
         let mut rng = rand::rng();
 
-        let mut grid = GridUniSparse::<Ant>::new(GridCentered {
+        let grid_centered = GridCentered {
             rx: width as f32 / 2.,
             ry: height as f32 / 2.,
-            nx: grid_nx,
-            ny: grid_ny,
-        });
+            nx: grid_uni_sparse_nx,
+            ny: grid_uni_sparse_ny,
+        };
+
+        let mut grid_uni_sparse = GridUniSparse::<Ant>::new(grid_centered);
         for i in 0..ant_count {
-            grid.new_item_at(0., 0.);
+            grid_uni_sparse.new_item_at(0., 0.);
         }
+
+        let grid_centered = GridCentered {
+            rx: grid_centered.rx,
+            ry: grid_centered.ry,
+            nx: grid_uni_sparse_nx,
+            ny: grid_uni_sparse_ny,
+        };
+        let mut grid_uniform = GridUniform::new(grid_centered);
+        for y in ((grid_centered.ry * 0.7) as u32)..((grid_centered.ry * 0.8) as u32) {
+            for x in ((grid_centered.rx * 0.8) as u32)..((grid_centered.rx * 0.9) as u32) {
+                grid_uniform.set(x as f32, y as f32, Tile::Food { amount: 100 });
+            }
+        }
+
         Self {
-            grid,
+            grid_uni_sparse,
+            grid_uniform,
             total_steps: 0,
             rng: rng,
             width: width as f32,
@@ -109,10 +135,10 @@ impl Environment {
         self.total_steps += 1;
 
         if self.total_steps % 60 == 0 {
-            self.grid.update();
+            self.grid_uni_sparse.update();
         }
 
-        for mut ant in self.grid.iter_mut() {
+        for mut ant in self.grid_uni_sparse.iter_mut() {
             if self.rng.random_ratio(1, 80) {
                 ant.av = self.rng.random_range(-ANT_AV_MARGIN..ANT_AV_MARGIN);
                 ant.v = self.rng.random_range(ANT_V_MIN..ANT_V_MAX);
@@ -133,11 +159,12 @@ impl Environment {
         }
         let out = web_output::Output {
             main: web_output::Main {
-                buckets: self.grid.web_output_buckets(),
+                buckets: self.grid_uni_sparse.web_output_buckets(),
             },
             debug: if debug_mode {
                 Some(web_output::Debug {
-                    grid: self.grid.web_output_buckets_debug_grid(),
+                    grid_uni_sparse: self.grid_uni_sparse.web_output_buckets_debug_grid(),
+                    grid_uniform: self.grid_uniform.clone(),
                 })
             } else {
                 None
