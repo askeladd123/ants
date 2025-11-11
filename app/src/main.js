@@ -83,7 +83,12 @@ for (let i = 0; i < grid_n; i++) {
   debug_grid_planes.push(tmp);
 }
 
-let debug = true;
+let debug = sessionStorage.getItem("settings");
+if (debug == null) {
+  debug = false;
+} else {
+  debug = JSON.parse(debug).debug;
+}
 debug_init();
 
 const clock = new THREE.Clock();
@@ -180,4 +185,5 @@ button.addEventListener('click', () => {
     debug_init();
     document.getElementById("debug").style.display = 'block';
   }
+  sessionStorage.setItem("settings", JSON.stringify({ debug: debug }));
 })
