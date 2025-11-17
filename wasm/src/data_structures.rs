@@ -1,4 +1,5 @@
 use crate::utils::{coord2index, index2coord, GridCentered};
+use crate::web_output;
 use anyhow::Result;
 use log::{debug, info};
 use std::fmt::Debug;
@@ -84,6 +85,7 @@ impl<T: Indexed + Coord + Copy + Clone + Debug> GridUniSparse<T> {
         self.entries[index].values_mut()
     }
     pub fn iter(&mut self) -> impl Iterator<Item = &T> {
+        // TODO: is iter ambiguous, since structure is nested?
         // TODO: impl iter instead
         self.entries.iter().flat_map(|m| m.values())
     }
@@ -91,28 +93,30 @@ impl<T: Indexed + Coord + Copy + Clone + Debug> GridUniSparse<T> {
         // TODO: impl iter instead
         self.entries.iter_mut().flat_map(|m| m.values_mut())
     }
+
+    pub fn buckets(&self) -> impl Iterator<Item = &HashMap<u32, T>> {
+        self.entries.iter()
+    }
 }
 
 impl GridUniSparse<crate::Ant> {
-    pub fn web_output_buckets(&self) -> Vec<crate::web_output::Bucket> {
-        let mut buckets = Vec::new();
-
-        for (i, map) in self.entries.iter().enumerate() {
-            let mut bucket = crate::web_output::Bucket {
-                index: i as u32,
-                ants: Vec::new(),
-            };
-            for ant in map.values() {
-                bucket.ants.push(crate::web_output::Ant {
+    pub fn web_output_ants(&self) -> Vec<web_output::Ant> {
+        let mut ants = Vec::with_capacity(self.index_counter as usize);
+        for (i, bucket) in self.buckets().enumerate() {
+            for ant in bucket.values() {
+                ants.push(web_output::Ant {
                     x: ant.x,
                     y: ant.y,
+                    v: ant.v,
                     a: ant.a,
                     av: ant.av,
+                    has_food: false,
+                    bucket_id: i as u32,
                 });
             }
-            buckets.push(bucket);
         }
-        buckets
+        ants.shrink_to_fit();
+        ants
     }
     pub fn web_output_buckets_debug_grid(&self) -> crate::web_output::Grid {
         let mut buckets = Vec::new();

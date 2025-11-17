@@ -1,34 +1,23 @@
 use serde::Serialize;
+use wasm_bindgen::prelude::wasm_bindgen;
 
-#[derive(Clone, Default, Debug, Serialize)]
-/// Information sent every game tick.
-pub struct Output {
-    pub main: Main,
-    pub debug: Option<Debug>,
-}
-
-#[derive(Clone, Default, Debug, Serialize)]
-pub struct Main {
-    pub buckets: Vec<Bucket>,
-}
-
-#[derive(Clone, Default, Debug, Serialize)]
-pub struct Debug {
-    pub grid: Grid,
-}
-
+/// * `x` - position: left right
+/// * `y` - position: up down
+/// * `v` - velocity: around 1.0
+/// * `a` - angle radians
+/// * `av` - angular velocity, radians per tick
+/// * `has_food` - is ant carrying food home, or out looking
+/// * `bucket_id` - location in underlying data structure
+#[wasm_bindgen]
 #[derive(Copy, Clone, Default, Debug, Serialize)]
 pub struct Ant {
     pub x: f32,
     pub y: f32,
+    pub v: f32,
     pub a: f32,
     pub av: f32,
-}
-
-#[derive(Clone, Default, Debug, Serialize)]
-pub struct Bucket {
-    pub index: u32,
-    pub ants: Vec<Ant>,
+    pub has_food: bool,
+    pub bucket_id: u32,
 }
 
 #[derive(Clone, Default, Debug, Serialize)]

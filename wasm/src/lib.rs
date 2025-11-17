@@ -105,7 +105,7 @@ impl Environment {
     }
 
     /// * `delta` - time between frame: for consistant speed accross different framerates
-    pub fn step(&mut self, delta: f32, debug_mode: bool) -> JsValue {
+    pub fn step(&mut self, delta: f32, debug_mode: bool) {
         self.total_steps += 1;
 
         if self.total_steps % 60 == 0 {
@@ -131,18 +131,14 @@ impl Environment {
 
             boundary_collision(&mut ant.x, &mut ant.y, &mut ant.a, l, r, u, d);
         }
-        let out = web_output::Output {
-            main: web_output::Main {
-                buckets: self.grid.web_output_buckets(),
-            },
-            debug: if debug_mode {
-                Some(web_output::Debug {
-                    grid: self.grid.web_output_buckets_debug_grid(),
-                })
-            } else {
-                None
-            },
-        };
+    }
+
+    pub fn get_ants(&self) -> Vec<web_output::Ant> {
+        self.grid.web_output_ants() // TODO: optimize: editing in-memory javascript or something else
+    }
+
+    pub fn get_grid(&self) -> JsValue {
+        let out = self.grid.web_output_buckets_debug_grid(); // TODO: avoid serializing here for performance
         serde_wasm_bindgen::to_value(&out).unwrap()
     }
 }
