@@ -93,32 +93,35 @@ debug_init();
 
 const clock = new THREE.Clock();
 
-let ants;
-
 renderer.setAnimationLoop(() => {
 
-  environment.step(clock.getDelta(), debug);
+  const last_environment = environment.step(clock.getDelta(), debug);
 
-  for (const [index, ant] of environment.get_ants().entries()) {
-    let obj = new THREE.Object3D();
-    obj.position.x = ant.x;
-    obj.position.y = ant.y;
-    obj.rotation.z = ant.a - Math.PI / 2;
-    obj.updateMatrix();
+  let i = 0
+  for (const bucket of last_environment.main.buckets) {
+    for (const ant of bucket.ants) {
 
-    let color = null;
-    if (debug) {
-      color = new THREE.Color().setHSL((6.789 * ant.bucket_id / grid_n) % 1, 0.8, 0.5);
-    } else {
-      color = new THREE.Color('skyblue');
+      let obj = new THREE.Object3D();
+      obj.position.x = ant.x;
+      obj.position.y = ant.y;
+      obj.rotation.z = ant.a - Math.PI / 2;
+      obj.updateMatrix();
+
+      let color = null;
+      if (debug) {
+        color = new THREE.Color().setHSL((6.789 * bucket.index / grid_n) % 1, 0.8, 0.5);
+      } else {
+        color = new THREE.Color('skyblue');
+      }
+
+      mesh.setMatrixAt(i, obj.matrix);
+      mesh.setColorAt(i, color);
+      i++;
     }
-
-    mesh.setMatrixAt(index, obj.matrix);
-    mesh.setColorAt(index, color); // TODO: not necessary when debug is off
   }
 
   if (debug) {
-    const grid = environment.get_grid();
+    const grid = last_environment.debug.grid
     for (let i = 0; i < grid_n; i++) {
       let bucket = grid.buckets[i];
       let pair = debug_grid_planes[i];
