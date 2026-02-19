@@ -28,3 +28,15 @@ devShell.${system} = pkgs.mkShell {
 ```
 
 Here you will required tools like `cargo`, `nodejs` and `wasm-bindgen`. After installing these do `nu run.nu` to start a development server.
+
+# stack
+- OS environment: Nix
+  - Rust environment: Cargo
+  - Web environment: Npm
+
+**Why did I chose to combine WebAssembly and JavaScript?**
+The reason I did this was because I have a passion for Wasm, and believe in it's efforts to make low-level, compiled, cross-platform code. Especially the day we get a [stable Component-Model ABI](https://github.com/WebAssembly/component-model).
+
+To run both on web and native OS, the full stack should have been Rust with available Wasm target. I could have used WGPU for graphics, and Egui for GUI. But because good tools are important for good workflows, I chose to write graphics in Three.js and GUI in html/js.
+
+This leaves the stack with extra complexity, but not the full benefits. I am fine with this, happy to write Rust, and view this as a challenge.
